@@ -1,90 +1,112 @@
 package main
 
 import (
-	"bufio"
-	"errors"
-	"flag"
 	"fmt"
-	"io"
 	"os"
-	"strings"
+
+	// adjust import path as needed
+	"github.com/arnab-baishnab/Learning-Cobra-CLI"
+	"github.com/spf13/cobra"
 )
 
 const (
-	todoFile = ".todo.json"
+	todoFile = ".todos.json"
 )
 
+var todos todo.Todos
+
 func main() {
+	var rootCmd = &cobra.Command{Use: "todo"}
 
-	add := flag.Bool("add", false, "add a new todo")
-	complete := flag.Int("complete", 0, "mark a todo as completed")
-	del := flag.Int("del", 0, "delete a todo")
-	list := flag.Bool("list", false, "list all todos")
-
-	flag.Parse()
-
-	todos := &todo.Todos{}
-
-	if err := todos.Load(todoFile); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+	var addCmd = &cobra.Command{
+		Use:   "add [task]",
+		Short: "Add a new todo",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			task := args[0]
+			todos.Add(task)
+			/*
+				if err := todos.Store(todoFile); err != nil {
+					fmt.Println("Error saving todos:", err)
+					os.Exit(1)
+				}
+				/**/
+			fmt.Println("Added task:", task)
+		},
 	}
 
-	switch {
-	case *add:
+	var completeCmd = &cobra.Command{
+		Use:   "complete [index]",
+		Short: "Mark a todo as completed",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			index, err := parseIndex(args[0])
+			if err != nil {
+				fmt.Println("Error:", err)
+				os.Exit(1)
+			}
+			if err := todos.Complete(index); err != nil {
+				fmt.Println("Error completing task:", err)
+				os.Exit(1)
+			}
+			if err := todos.Store(todoFile); err != nil {
+				fmt.Println("Error saving todos:", err)
+				os.Exit(1)
+			}
+			fmt.Println("Completed task:", index)
+		},
+	}
 
-		task, err := getInput(os.Stdin, flag.Args()...)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-	case *complete > 0:
-		err := todos.Complete(*complete)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		err = todos.Store(todoFile)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-	case *del > 0:
-		err := todos.Delete(*del)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		err = todos.Store(todoFile)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-	case *list:
-		todos.Print()
-	default:
-		fmt.Fprintln(os.Stdout, "Invalid command")
-		os.Exit(0)
+	var deleteCmd = &cobra.Command{
+		Use:   "delete [index]",
+		Short: "Delete a todo",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			index, err := parseIndex(args[0])
+			if err != nil {
+				fmt.Println("Error:", err)
+				os.Exit(1)
+			}
+			if err := todos.Delete(index); err != nil {
+				fmt.Println("Error deleting task:", err)
+				os.Exit(1)
+			}
+			if err := todos.Store(todoFile); err != nil {
+				fmt.Println("Error saving todos:", err)
+				os.Exit(1)
+			}
+			fmt.Println("Deleted task:", index)
+		},
+	}
+
+	var listCmd = &cobra.Command{
+		Use:   "list",
+		Short: "List all todos",
+		Run: func(cmd *cobra.Command, args []string) {
+			if err := todos.Load(todoFile); err != nil {
+				fmt.Println("Error loading todos:", err)
+				os.Exit(1)
+			}
+			todos.Print()
+		},
+	}
+
+	rootCmd.AddCommand(addCmd)
+	rootCmd.AddCommand(completeCmd)
+	rootCmd.AddCommand(deleteCmd)
+	rootCmd.AddCommand(listCmd)
+
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 
-func getInput(r io.Reader, args ...string) (string, error) {
-
-	if len(args) > 0 {
-		return strings.Join(args, " "), nil
+func parseIndex(arg string) (int, error) {
+	var index int
+	_, err := fmt.Sscanf(arg, "%d", &index)
+	if err != nil {
+		return 0, fmt.Errorf("invalid index")
 	}
-
-	scanner := bufio.NewScanner(r)
-	scanner.Scan()
-	if err := scanner.Err(); err != nil {
-		return "", err
-	}
-
-	text := scanner.Text()
-
-	if len(text) == 0 {
-		return "", errors.New("empty todo is not allowed")
-	}
-
-	return text, nil
+	return index, nil
 }

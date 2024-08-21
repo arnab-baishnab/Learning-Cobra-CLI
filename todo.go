@@ -19,14 +19,40 @@ type item struct {
 
 type Todos []item
 
+func (t *Todos) SPrint() {
+	fmt.Println("Current TODO List:")
+	fmt.Println("Index | Task                | Done | CreatedAt                  | CompletedAt")
+	fmt.Println("------+---------------------+------+----------------------------+----------------------------")
+	for i, item := range *t {
+		done := "no"
+		if item.Done {
+			done = "yes"
+		}
+		fmt.Printf("%-5d | %-19s | %-4s | %-26s | %-26s\n",
+			i+1,
+			item.Task,
+			done,
+			item.CreatedAt.Format("02 Jan 2006 15:04:05"),
+			item.CompletedAt.Format("02 Jan 2006 15:04:05"),
+		)
+	}
+	fmt.Println()
+}
+
 func (t *Todos) Add(task string) {
+
 	todo := item{
 		Task:        task,
 		Done:        false,
 		CreatedAt:   time.Now(),
-		CompletedAt: time.Time{}, // zero value
+		CompletedAt: time.Time{},
 	}
+
 	*t = append(*t, todo)
+
+	t.SPrint()
+
+	fmt.Printf("Added task: %s\n", task) // Debug log
 }
 
 func (t *Todos) Complete(index int) error {
@@ -34,8 +60,10 @@ func (t *Todos) Complete(index int) error {
 	if index <= 0 || index > len(ls) {
 		return errors.New("invalid index")
 	}
+
 	ls[index-1].CompletedAt = time.Now()
 	ls[index-1].Done = true
+
 	return nil
 }
 
@@ -44,7 +72,9 @@ func (t *Todos) Delete(index int) error {
 	if index <= 0 || index > len(ls) {
 		return errors.New("invalid index")
 	}
+
 	*t = append(ls[:index-1], ls[index:]...)
+
 	return nil
 }
 
@@ -56,37 +86,44 @@ func (t *Todos) Load(filename string) error {
 		}
 		return err
 	}
+
 	if len(file) == 0 {
-		return nil
+		return err
 	}
 	err = json.Unmarshal(file, t)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (t *Todos) Store(filename string) error {
+
 	data, err := json.Marshal(t)
 	if err != nil {
 		return err
 	}
+	fmt.Printf("Storing data: %s\n", string(data)) // Debug log
 	return os.WriteFile(filename, data, 0644)
 }
 
 func (t *Todos) Print() {
+
 	table := simpletable.New()
+
 	table.Header = &simpletable.Header{
 		Cells: []*simpletable.Cell{
 			{Align: simpletable.AlignCenter, Text: "#"},
 			{Align: simpletable.AlignCenter, Text: "Task"},
 			{Align: simpletable.AlignCenter, Text: "Done?"},
-			{Align: simpletable.AlignCenter, Text: "CreatedAt"},
-			{Align: simpletable.AlignCenter, Text: "CompletedAt"},
+			{Align: simpletable.AlignRight, Text: "CreatedAt"},
+			{Align: simpletable.AlignRight, Text: "CompletedAt"},
 		},
 	}
 
 	var cells [][]*simpletable.Cell
+
 	for idx, item := range *t {
 		idx++
 		task := blue(item.Task)
@@ -95,7 +132,7 @@ func (t *Todos) Print() {
 			task = green(fmt.Sprintf("\u2705 %s", item.Task))
 			done = green("yes")
 		}
-		cells = append(cells, []*simpletable.Cell{
+		cells = append(cells, *&[]*simpletable.Cell{
 			{Text: fmt.Sprintf("%d", idx)},
 			{Text: task},
 			{Text: done},
@@ -103,11 +140,15 @@ func (t *Todos) Print() {
 			{Text: item.CompletedAt.Format(time.RFC822)},
 		})
 	}
+
 	table.Body = &simpletable.Body{Cells: cells}
+
 	table.Footer = &simpletable.Footer{Cells: []*simpletable.Cell{
 		{Align: simpletable.AlignCenter, Span: 5, Text: red(fmt.Sprintf("You have %d pending todos", t.CountPending()))},
 	}}
+
 	table.SetStyle(simpletable.StyleUnicode)
+
 	table.Println()
 }
 
@@ -118,5 +159,6 @@ func (t *Todos) CountPending() int {
 			total++
 		}
 	}
+
 	return total
 }
