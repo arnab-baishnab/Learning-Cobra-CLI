@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	// adjust import path as needed
-	"github.com/arnab-baishnab/Learning-Cobra-CLI"
+	// Adjust import path as needed
+	todo "github.com/arnab-baishnab/Learning-Cobra-CLI"
 	"github.com/spf13/cobra"
 )
 
@@ -23,15 +23,20 @@ func main() {
 		Short: "Add a new todo",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			// Load existing todos
+			if err := todos.Load(todoFile); err != nil {
+				fmt.Fprintf(os.Stderr, "Error loading todos: %v\n", err)
+				os.Exit(1)
+			}
+			// Add new todo
 			task := args[0]
 			todos.Add(task)
-			/*
-				if err := todos.Store(todoFile); err != nil {
-					fmt.Println("Error saving todos:", err)
-					os.Exit(1)
-				}
-				/**/
-			fmt.Println("Added task:", task)
+			// Store updated todos
+			if err := todos.Store(todoFile); err != nil {
+				fmt.Fprintf(os.Stderr, "Error saving todos: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Added task: %s\n", task)
 		},
 	}
 
@@ -40,6 +45,11 @@ func main() {
 		Short: "Mark a todo as completed",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			// Load existing todos
+			if err := todos.Load(todoFile); err != nil {
+				fmt.Fprintf(os.Stderr, "Error loading todos: %v\n", err)
+				os.Exit(1)
+			}
 			index, err := parseIndex(args[0])
 			if err != nil {
 				fmt.Println("Error:", err)
@@ -49,6 +59,7 @@ func main() {
 				fmt.Println("Error completing task:", err)
 				os.Exit(1)
 			}
+			// Store updated todos
 			if err := todos.Store(todoFile); err != nil {
 				fmt.Println("Error saving todos:", err)
 				os.Exit(1)
@@ -62,6 +73,11 @@ func main() {
 		Short: "Delete a todo",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			// Load existing todos
+			if err := todos.Load(todoFile); err != nil {
+				fmt.Fprintf(os.Stderr, "Error loading todos: %v\n", err)
+				os.Exit(1)
+			}
 			index, err := parseIndex(args[0])
 			if err != nil {
 				fmt.Println("Error:", err)
@@ -71,6 +87,7 @@ func main() {
 				fmt.Println("Error deleting task:", err)
 				os.Exit(1)
 			}
+			// Store updated todos
 			if err := todos.Store(todoFile); err != nil {
 				fmt.Println("Error saving todos:", err)
 				os.Exit(1)
@@ -79,10 +96,29 @@ func main() {
 		},
 	}
 
+	var clearCmd = &cobra.Command{
+		Use:   "clear",
+		Short: "Delete all todos",
+		Run: func(cmd *cobra.Command, args []string) {
+			// Load existing todos
+			if err := todos.Load(todoFile); err != nil {
+				fmt.Fprintf(os.Stderr, "Error loading todos: %v\n", err)
+				os.Exit(1)
+			}
+			// Clear all todos
+			if err := todos.Clear(todoFile); err != nil {
+				fmt.Fprintf(os.Stderr, "Error clearing todos: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Println("All todos have been deleted.")
+		},
+	}
+
 	var listCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List all todos",
 		Run: func(cmd *cobra.Command, args []string) {
+			// Load existing todos
 			if err := todos.Load(todoFile); err != nil {
 				fmt.Println("Error loading todos:", err)
 				os.Exit(1)
@@ -94,6 +130,7 @@ func main() {
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(completeCmd)
 	rootCmd.AddCommand(deleteCmd)
+	rootCmd.AddCommand(clearCmd)
 	rootCmd.AddCommand(listCmd)
 
 	if err := rootCmd.Execute(); err != nil {

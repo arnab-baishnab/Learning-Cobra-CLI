@@ -50,7 +50,7 @@ func (t *Todos) Add(task string) {
 
 	*t = append(*t, todo)
 
-	t.SPrint()
+	//t.SPrint()
 
 	fmt.Printf("Added task: %s\n", task) // Debug log
 }
@@ -76,6 +76,11 @@ func (t *Todos) Delete(index int) error {
 	*t = append(ls[:index-1], ls[index:]...)
 
 	return nil
+}
+
+func (t *Todos) Clear(filename string) error {
+	*t = []item{}
+	return t.Store(filename)
 }
 
 func (t *Todos) Load(filename string) error {
